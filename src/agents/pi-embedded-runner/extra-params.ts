@@ -80,6 +80,20 @@ type CacheRetentionStreamOptions = Partial<SimpleStreamOptions> & {
   openaiWsWarmup?: boolean;
 };
 
+function resolveExplicitCacheRetention(
+  extraParams: Record<string, unknown> | undefined,
+): CacheRetentionStreamOptions["cacheRetention"] | undefined {
+  const cacheRetention = extraParams?.cacheRetention;
+  if (
+    cacheRetention === "none" ||
+    cacheRetention === "short" ||
+    cacheRetention === "long"
+  ) {
+    return cacheRetention;
+  }
+  return undefined;
+}
+
 function createStreamFnWithExtraParams(
   baseStreamFn: StreamFn | undefined,
   extraParams: Record<string, unknown> | undefined,
@@ -106,7 +120,8 @@ function createStreamFnWithExtraParams(
   if (typeof extraParams.openaiWsWarmup === "boolean") {
     streamParams.openaiWsWarmup = extraParams.openaiWsWarmup;
   }
-  const cacheRetention = resolveCacheRetention(extraParams, provider);
+  const cacheRetention =
+    resolveExplicitCacheRetention(extraParams) ?? resolveCacheRetention(extraParams, provider);
   if (cacheRetention) {
     streamParams.cacheRetention = cacheRetention;
   }

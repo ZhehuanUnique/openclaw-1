@@ -11,6 +11,18 @@ vi.mock("./logger.js", () => ({
 }));
 
 describe("cacheRetention default behavior", () => {
+  function createOptionsCaptureAgent() {
+    const calls: Array<Record<string, unknown> | undefined> = [];
+    const baseStreamFn: StreamFn = (_model, _context, options) => {
+      calls.push(options as Record<string, unknown> | undefined);
+      return {} as ReturnType<StreamFn>;
+    };
+    return {
+      calls,
+      agent: { streamFn: baseStreamFn },
+    };
+  }
+
   it("returns 'short' for Anthropic when not configured", () => {
     const agent: { streamFn?: StreamFn } = {};
     const cfg = undefined;
@@ -150,5 +162,38 @@ describe("cacheRetention default behavior", () => {
 
     // Verify streamFn was set (override was applied)
     expect(agent.streamFn).toBeDefined();
+  });
+
+  it("passes through explicit cacheRetention for custom openai-responses providers", () => {
+    const { calls, agent } = createOptionsCaptureAgent();
+    const cfg = {
+      agents: {
+        defaults: {
+          models: {
+            "volcark/doubao-seed-2-0-pro-260215": {
+              params: {
+                cacheRetention: "none" as const,
+              },
+            },
+          },
+        },
+      },
+    };
+
+    applyExtraParamsToAgent(agent, cfg, "volcark", "doubao-seed-2-0-pro-260215");
+
+    void agent.streamFn?.(
+      {
+        api: "openai-responses",
+        provider: "volcark",
+        id: "doubao-seed-2-0-pro-260215",
+        baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
+      } as any,
+      { messages: [] } as any,
+      {},
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.cacheRetention).toBe("none");
   });
 });
